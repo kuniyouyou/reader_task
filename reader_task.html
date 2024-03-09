@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>チームリーダーのためのタスク管理帳</title>
+    <script src="js/jquery-2.1.3.min.js"></script>
+    <link rel="stylesheet" href="css/sample.css">
+</head>
+
+
+
+<body>
+    <header>
+        <h1>チームリーダーのためのタスク管理帳</h1>
+    </header>
+    <div id="task">
+    <p>入庫日</p>
+    <main stayle="display: ;">
+        <textarea id="textarea"></textarea>
+
+    <p>やること</p>
+    <main stayle="display: none;">
+        <textarea id="textarea"></textarea>
+
+    <p>担当者</p>
+    <main stayle="display: none;">
+        <textarea id="textarea"></textarea>
+        
+
+        <ul>
+            <li id="Save">保存</li>
+            <li id="Clear">終了</li>
+        </ul>
+    </div>
+
+        <li id="new">新規</li>
+
+        <!-- メンバーからの報告をチャットでやり取りする -->
+    <p>報告チャット</p>
+    <div>
+        <div> 名前：<input type="text" id="uname"> </div>
+        <div>
+            <textarea id="text" cols="30" rows="10"></textarea>
+            <button id="send">送信</button>
+        </div>
+        <div id="output" style="overflow: auto;height: 300px;"></div>
+    </div> 
+
+    </main>
+
+    <footer><small>G's</small></footer>
+    
+    <!-- 保存・削除設定 -->
+    <script>
+        
+
+         // txt入力部分の動作指定
+         $("main").slideDown(500);
+        //1.Save クリックイベント
+        $("#Save").on("click",function(){
+            // textエリアのvalを取得する
+            const value = $("#textarea").val();
+            localStorage.setItem("memo",value);
+
+           alert("保存しました");
+        });
+
+
+
+        //2.clear クリックイベント
+        $("#Clear").on("click",function(){
+            localStorage.removeItem("memo");
+           alert("削除しました");
+           $("#textarea").val("");
+        });
+
+
+
+
+        //3.ページ読み込み：保存データ取得表示
+        if(localStorage.getItem("memo")){
+            const value = localStorage.getItem("memo");
+            $("#textarea").val(value);
+        }
+
+
+    </script>
+
+    <!-- チャットの動作 -->
+<!-- JQuery -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<!-- JQuery -->
+
+
+<!--** 以下Firebase **-->
+<script type="module">
+    // firebaseApikey.jsからexportされているオブジェクトをfirebaseConfigという変数で取り扱うという記述
+    import firebaseConfig from "./firebaseApikey.js";
+    
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getDatabase, ref, push, set, onChildAdded, remove, onChildRemoved,update,onChildChanged } 
+    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+    console.log(firebaseConfig);
+
+    // TODO: Add SDKs for Firebase products that you want to use
+    // https://firebase.google.com/docs/web/setup#available-libraries
+  
+    // Your web app's Firebase configuration
+   
+  
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db,"chat");
+
+    $("#send").on("click",function(){
+        const msg = {
+          uname :  $("#uname").val(),
+          text :  $("#text").val()
+        }
+        const newPostRef = push(dbRef); //ユニークキーを生成
+        set(newPostRef,msg);
+    });
+
+   onChildAdded(dbRef,function(data){
+        const msg = data.val();
+        const key = data.key; //ユニークキー　削除・更新に必須！！
+        let h = '<p id="'+key+'">';
+            h += msg.uname;
+            h += '<br>';
+            h += '<span contentEditable="true" id="'+key+'_update">'+msg.text+'</span>';
+            h += '<span class="remove" data-key="'+key+'"> 🆑</span>';
+            h += '<span class="update" data-key="'+key+'"> 🆙</span>';
+            h += '</p>';
+            $("#output").prepend(h);
+   });
+
+  //  削除イベント
+   $("#output").on("click", ".remove", function(){
+      const key = $(this).attr("data-key");
+      const remove_item = ref(db,"chat/"+key);
+      remove(remove_item);  // Firebaseデータ削除関数
+   });
+
+  //  更新イベント
+   $("#output").on("click", ".update", function(){
+      const key = $(this).attr("data-key");
+      update(ref(db, "chat/"+key), {
+             text: $("#"+key+'_update').html()
+      });
+   });
+
+  //  削除処理がFirebase側で実行されたらイベント発生！
+  onChildRemoved(dbRef, (data) => {
+    $("#"+data.key).remove(); // DOM操作関数（対象を削除）
+  });
+
+  // 更新処理がFirebase側で実行されたらイベント発生！
+  onChildChanged(dbRef, (data) =>{
+    $("#"+data.key+'_update').html(data.val().text);
+    $("#"+data.key+'_update').fadeOut(800).fadeIn(800);
+  });
+
+
+  </script>
+
+</body>
+</html>
